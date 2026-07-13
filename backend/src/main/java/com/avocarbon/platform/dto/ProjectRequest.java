@@ -1,21 +1,10 @@
 package com.avocarbon.platform.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
 
-/**
- * Data Transfer Object for project creation and update requests.
- *
- * Defines the contract for creating and updating projects via REST API.
- * Includes validation constraints that are applied at the API boundary.
- *
- * @since 1.0.0
- */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -24,10 +13,13 @@ import lombok.Setter;
 public class ProjectRequest {
 
     @NotBlank(message = "Project name is required")
-    @Size(min = 3, max = 100, message = "Project name must be between 3 and 100 characters")
+    @Size(min = 3, max = 100)
     private String name;
 
-    @Size(max = 1000, message = "Project description must not exceed 1000 characters")
+    @Size(max = 1000)
     private String description;
+
+    @NotNull(message = "Owner is required")
+    private Long ownerId;
 
 }

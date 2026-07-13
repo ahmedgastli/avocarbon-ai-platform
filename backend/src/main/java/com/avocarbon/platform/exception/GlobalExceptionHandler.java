@@ -1,5 +1,6 @@
 package com.avocarbon.platform.exception;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,15 +26,12 @@ public class GlobalExceptionHandler {
 
     /**
      * Handles ResourceNotFoundException.
-     *
-     * @param ex the exception
-     * @param request the web request
-     * @return error response with 404 status
      */
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<ErrorResponse> handleResourceNotFoundException(
             ResourceNotFoundException ex,
             WebRequest request) {
+
         log.error("Resource not found: {}", ex.getMessage());
 
         ErrorResponse errorResponse = ErrorResponse.builder()
@@ -47,16 +45,33 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles MethodArgumentNotValidException (validation errors).
-     *
-     * @param ex the exception
-     * @param request the web request
-     * @return error response with 400 status
+     * Handles UserAlreadyExistsException.
+     */
+    @ExceptionHandler(UserAlreadyExistsException.class)
+    public ResponseEntity<ErrorResponse> handleUserAlreadyExistsException(
+            UserAlreadyExistsException ex,
+            HttpServletRequest request) {
+
+        log.error("User already exists: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.CONFLICT.value())
+                .message(ex.getMessage())
+                .path(request.getRequestURI())
+                .timestamp(Instant.now())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.CONFLICT);
+    }
+
+    /**
+     * Handles validation errors.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(
             MethodArgumentNotValidException ex,
             WebRequest request) {
+
         log.error("Validation error: {}", ex.getMessage());
 
         String message = ex.getBindingResult().getFieldErrors()
@@ -75,16 +90,13 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles general exceptions.
-     *
-     * @param ex the exception
-     * @param request the web request
-     * @return error response with 500 status
+     * Handles all unexpected exceptions.
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneralException(
             Exception ex,
             WebRequest request) {
+
         log.error("Internal server error: ", ex);
 
         ErrorResponse errorResponse = ErrorResponse.builder()

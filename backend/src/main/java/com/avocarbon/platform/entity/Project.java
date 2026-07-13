@@ -24,8 +24,8 @@ import org.hibernate.annotations.UpdateTimestamp;
  */
 @Entity
 @Table(name = "projects", indexes = {
-    @Index(name = "idx_project_status", columnList = "status"),
-    @Index(name = "idx_project_created_at", columnList = "created_at")
+        @Index(name = "idx_project_status", columnList = "status"),
+        @Index(name = "idx_project_created_at", columnList = "created_at")
 })
 @Getter
 @Setter
@@ -51,6 +51,14 @@ public class Project {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     private ProjectStatus status;
+
+    /**
+     * Owner of this project.
+     * Each project belongs to one user.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "owner_id", nullable = false)
+    private User owner;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

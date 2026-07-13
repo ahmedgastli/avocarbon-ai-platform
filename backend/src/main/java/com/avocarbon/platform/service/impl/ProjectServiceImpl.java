@@ -4,8 +4,10 @@ import com.avocarbon.platform.dto.ProjectRequest;
 import com.avocarbon.platform.dto.ProjectResponse;
 import com.avocarbon.platform.entity.Project;
 import com.avocarbon.platform.entity.ProjectStatus;
+import com.avocarbon.platform.entity.User;
 import com.avocarbon.platform.exception.ResourceNotFoundException;
 import com.avocarbon.platform.repository.ProjectRepository;
+import com.avocarbon.platform.repository.UserRepository;
 import com.avocarbon.platform.service.ProjectService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,16 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
-/**
- * Service implementation for project operations.
- *
- * Implements the business logic for managing projects.
- * Handles entity to DTO mapping and repository interactions.
- *
- * @since 1.0.0
- */
 @Service
 @RequiredArgsConstructor
 @Transactional
@@ -30,82 +23,103 @@ import java.util.stream.Collectors;
 public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
+    private final UserRepository userRepository;
 
     @Override
     public ProjectResponse createProject(ProjectRequest request) {
-        log.info("Creating new project with name: {}", request.getName());
+
+        log.info("Creating project {}", request.getName());
+
+        User owner = userRepository.findById(request.getOwnerId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id : " + request.getOwnerId()
+                        ));
 
         Project project = Project.builder()
                 .name(request.getName())
                 .description(request.getDescription())
                 .status(ProjectStatus.CREATED)
+                .owner(owner)
                 .build();
 
-        Project savedProject = projectRepository.save(project);
-        log.info("Project created successfully with id: {}", savedProject.getId());
+        Project saved = projectRepository.save(project);
 
-        return mapToResponse(savedProject);
+        return mapToResponse(saved);
     }
 
     @Override
     @Transactional(readOnly = true)
     public List<ProjectResponse> getAllProjects() {
-        log.info("Fetching all projects");
+
         return projectRepository.findAll()
                 .stream()
                 .map(this::mapToResponse)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     @Override
     @Transactional(readOnly = true)
     public ProjectResponse getProjectById(Long id) {
-        log.info("Fetching project with id: {}", id);
+
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Project not found with id : " + id
+                        ));
+
         return mapToResponse(project);
     }
 
     @Override
     public ProjectResponse updateProject(Long id, ProjectRequest request) {
-        log.info("Updating project with id: {}", id);
 
         Project project = projectRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + id));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Project not found with id : " + id
+                        ));
+
+        User owner = userRepository.findById(request.getOwnerId())
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "User not found with id : " + request.getOwnerId()
+                        ));
 
         project.setName(request.getName());
         project.setDescription(request.getDescription());
+        project.setOwner(owner);
 
-        Project updatedProject = projectRepository.save(project);
-        log.info("Project updated successfully with id: {}", updatedProject.getId());
+        Project updated = projectRepository.save(project);
 
-        return mapToResponse(updatedProject);
+        return mapToResponse(updated);
     }
 
     @Override
     public void deleteProject(Long id) {
-        log.info("Deleting project with id: {}", id);
 
-        if (!projectRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Project not found with id: " + id);
-        }
+        Project project = projectRepository.findById(id)
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Project not found with id : " + id
+                        ));
 
-        projectRepository.deleteById(id);
-        log.info("Project deleted successfully with id: {}", id);
+        projectRepository.delete(project);
     }
 
-    /**
-     * Maps a Project entity to a ProjectResponse DTO.
-     *
-     * @param project the project entity
-     * @return the project response DTO
-     */
     private ProjectResponse mapToResponse(Project project) {
+
         return ProjectResponse.builder()
                 .id(project.getId())
                 .name(project.getName())
                 .description(project.getDescription())
                 .status(project.getStatus())
+                .ownerId(project.getOwner().getId())
+                .ownerName(
+                        project.getOwner().getFirstName()
+                                + " "
+                                + project.getOwner().getLastName()
+                )
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
                 .build();
