@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary-color: #0076C8;
+  --primary-color-text: #ffffff;
+  --avocarbon-blue: #0076C8;
+  --avocarbon-darkblue: #155A8A;
+  --avocarbon-orange: #F58220;
+  --avocarbon-gray: #666666;
+  --avocarbon-lightgray: #D9D9D9;
+  --avocarbon-bg: #F4F6F9;
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  background-color: #F4F6F9;
+  color: #333333;
+}
+
+/* Custom PrimeNG Theme Adjustments for AVOCarbon */
+.p-button-primary, .p-button {
+  background-color: #0076C8 !important;
+  border-color: #0076C8 !important;
+}
+
+.p-button-primary:hover, .p-button:hover {
+  background-color: #155A8A !important;
+  border-color: #155A8A !important;
+}
+
+.p-button-accent {
+  background-color: #F58220 !important;
+  border-color: #F58220 !important;
+  color: white !important;
+}
+
+.p-button-accent:hover {
+  background-color: #e07318 !important;
+  border-color: #e07318 !important;
+}
+
+.p-card {
+  border-radius: 12px !important;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05) !important;
+}
+
+.p-datatable .p-datatable-header {
+  background: #ffffff !important;
+  border: none !important;
+}
+
+.p-datatable .p-datatable-thead > tr > th {
+  background: #f8fafc !important;
+  color: #155A8A !important;
+  font-weight: 600 !important;
+  border-bottom: 2px solid #e2e8f0 !important;
+}
+
+.p-tag {
+  font-weight: 600 !important;
+  font-size: 0.75rem !important;
+}

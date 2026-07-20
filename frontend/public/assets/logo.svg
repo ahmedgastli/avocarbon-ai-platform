@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 450 120" width="100%" height="100%">
+  <!-- AVO in bold slanted blue -->
+  <text x="0" y="65" font-family="'Inter', 'Arial Black', sans-serif" font-size="64" font-weight="900" font-style="italic" fill="#0076C8" letter-spacing="-2">AVO</text>
+  <!-- Carbon in slanted dark charcoal -->
+  <text x="175" y="65" font-family="'Inter', 'Arial', sans-serif" font-size="64" font-weight="400" font-style="italic" fill="#4A4A4A" letter-spacing="-1">Carbon</text>
+  <!-- Underline bar -->
+  <line x1="0" y1="78" x2="435" y2="78" stroke="#D9D9D9" stroke-width="2.5" />
+  <!-- GROUP in bold orange aligned right under Carbon -->
+  <text x="325" y="108" font-family="'Inter', 'Arial Black', sans-serif" font-size="28" font-weight="900" fill="#F58220" letter-spacing="4">GROUP</text>
+</svg>
