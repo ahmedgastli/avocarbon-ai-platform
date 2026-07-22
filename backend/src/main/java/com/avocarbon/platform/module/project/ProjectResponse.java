@@ -26,6 +26,8 @@ public class ProjectResponse {
 
     private Instant startDate;
 
+    private String siteId;
+
     private Instant createdAt;
 
     private Instant updatedAt;

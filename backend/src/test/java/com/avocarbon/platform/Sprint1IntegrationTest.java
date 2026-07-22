@@ -61,6 +61,7 @@ class Sprint1IntegrationTest {
                 .password(passwordEncoder.encode("password123"))
                 .role(Role.PRODUCTION_MANAGER)
                 .enabled(true)
+                .assignedSites(java.util.List.of("luxembourg"))
                 .build();
         userRepository.save(testUser);
 
@@ -89,6 +90,7 @@ class Sprint1IntegrationTest {
                 .description("Project to track and reduce scrap rate in Line 1 production.")
                 .ownerId(testUser.getId())
                 .startDate(projectStartDate)
+                .siteId("luxembourg")
                 .build();
 
         MvcResult projectResult = mockMvc.perform(post("/api/projects")
@@ -111,6 +113,7 @@ class Sprint1IntegrationTest {
                 .token("super-secret-token")
                 .type(DataSourceType.PRODUCTION)
                 .syncFrequency(SyncFrequency.DAILY)
+                .siteId("luxembourg")
                 .build();
 
         MvcResult dsResult = mockMvc.perform(post("/api/projects/" + projectId + "/datasources")
@@ -142,6 +145,7 @@ class Sprint1IntegrationTest {
                 .token("new-token")
                 .type(DataSourceType.PRODUCTION)
                 .syncFrequency(SyncFrequency.WEEKLY)
+                .siteId("luxembourg")
                 .build();
 
         mockMvc.perform(put("/api/datasources/" + dataSourceId)

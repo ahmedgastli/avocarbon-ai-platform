@@ -23,6 +23,8 @@ public class AnalyticsController {
 
     private final KpiAggregationRepository kpiAggregationRepository;
     private final KpiCalculationService kpiCalculationService;
+    private final com.avocarbon.platform.module.project.ProjectRepository projectRepository;
+    private final com.avocarbon.platform.module.identity.SecurityHelper securityHelper;
 
     @GetMapping("/projects/{projectId}/summary")
     @Operation(summary = "Get overall KPI summary", description = "Retrieve the latest aggregated overall KPIs for a project")
@@ -32,6 +34,10 @@ public class AnalyticsController {
     })
     public ResponseEntity<KpiAggregationResponse> getKpiSummary(@PathVariable Long projectId) {
         log.info("Request to fetch KPI summary for project {}", projectId);
+
+        com.avocarbon.platform.module.project.Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new com.avocarbon.platform.exception.ResourceNotFoundException("Project not found with id: " + projectId));
+        securityHelper.validateSiteAccess(project.getSiteId());
         
         KpiAggregation latestOverall = kpiAggregationRepository
                 .findTopByProjectIdAndAggregationPeriodOrderByCalculationTimestampDesc(projectId, "OVERALL")
@@ -62,6 +68,10 @@ public class AnalyticsController {
     })
     public ResponseEntity<List<KpiAggregationResponse>> getKpiHistory(@PathVariable Long projectId) {
         log.info("Request to fetch KPI history for project {}", projectId);
+
+        com.avocarbon.platform.module.project.Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new com.avocarbon.platform.exception.ResourceNotFoundException("Project not found with id: " + projectId));
+        securityHelper.validateSiteAccess(project.getSiteId());
         
         List<KpiAggregation> history = kpiAggregationRepository
                 .findByProjectIdAndAggregationPeriodOrderByCalculationTimestampAsc(projectId, "DAILY");

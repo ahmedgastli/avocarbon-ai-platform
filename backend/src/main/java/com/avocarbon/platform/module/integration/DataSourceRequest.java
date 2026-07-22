@@ -29,4 +29,7 @@ public class DataSourceRequest {
 
     @NotNull(message = "Sync frequency is required")
     private SyncFrequency syncFrequency;
+
+    @jakarta.validation.constraints.NotBlank(message = "Site is required")
+    private String siteId;
 }

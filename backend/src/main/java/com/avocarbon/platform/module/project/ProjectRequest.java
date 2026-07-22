@@ -27,4 +27,7 @@ public class ProjectRequest {
     @NotNull(message = "Start date is required")
     private Instant startDate;
 
+    @NotBlank(message = "Site is required")
+    private String siteId;
+
 }

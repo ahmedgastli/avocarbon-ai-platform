@@ -19,6 +19,13 @@ export class AuthService {
   isAuthenticated = computed(() => !!this.tokenSignal());
   isAdmin = computed(() => this.currentUserSignal()?.role === 'ADMIN');
 
+  isSiteAuthorized(siteId: string): boolean {
+    const user = this.currentUserSignal();
+    if (!user) return false;
+    if (user.role === 'ADMIN' || user.role === 'DIRECTION') return true;
+    return !!user.assignedSites && user.assignedSites.includes(siteId);
+  }
+
   login(credentials: LoginRequest): Observable<LoginResponse> {
     return this.http.post<LoginResponse>(`${this.apiUrl}/login`, credentials).pipe(
       tap(response => {

@@ -19,6 +19,7 @@ public class DataSourceResponse {
     private SyncFrequency syncFrequency;
     private Long projectId;
     private String projectName;
+    private String siteId;
     private Instant createdAt;
     private Instant updatedAt;
 }

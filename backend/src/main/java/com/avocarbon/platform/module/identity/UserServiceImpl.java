@@ -45,6 +45,7 @@ public class UserServiceImpl implements UserService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(request.getRole())
+                .assignedSites(request.getAssignedSites() != null ? request.getAssignedSites() : new java.util.ArrayList<>())
                 .build();
 
         User saved = userRepository.save(user);
@@ -105,6 +106,9 @@ public class UserServiceImpl implements UserService {
         user.setEmail(request.getEmail());
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setRole(request.getRole());
+        if (request.getAssignedSites() != null) {
+            user.setAssignedSites(request.getAssignedSites());
+        }
 
         User updated = userRepository.save(user);
 
@@ -152,6 +156,7 @@ public class UserServiceImpl implements UserService {
                 .lastName(user.getLastName())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .assignedSites(user.getAssignedSites())
                 .createdAt(user.getCreatedAt())
                 .updatedAt(user.getUpdatedAt())
                 .build();

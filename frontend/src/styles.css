@@ -1,3 +1,5 @@
+@import "leaflet/dist/leaflet.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -63,3 +65,22 @@ body {
   font-weight: 600 !important;
   font-size: 0.75rem !important;
 }
+
+/* Print friendly styling for Analytics & Reporting */
+@media print {
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  aside, app-sidebar, header, app-topbar, .p-toolbar, button, p-dropdown, .no-print, .p-toast {
+    display: none !important;
+  }
+  .print-content {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+}
+

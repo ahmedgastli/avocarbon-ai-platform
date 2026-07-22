@@ -7,6 +7,8 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.*;
 
+import java.util.List;
+
 /**
  * Request DTO for creating and updating users.
  *
@@ -37,5 +39,7 @@ public class UserRequest {
 
     @NotNull(message = "Role is required")
     private Role role;
+
+    private List<String> assignedSites;
 
 }

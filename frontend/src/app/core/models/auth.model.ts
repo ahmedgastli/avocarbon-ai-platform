@@ -7,6 +7,7 @@ export interface User {
   email: string;
   role: Role;
   enabled?: boolean;
+  assignedSites?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -27,6 +28,7 @@ export interface UserRequest {
   email: string;
   password?: string;
   role: Role;
+  assignedSites?: string[];
 }
 
 export interface UserResponse extends User {}

@@ -55,6 +55,29 @@ public class DataSource {
     @JoinColumn(name = "project_id", nullable = false)
     private Project project;
 
+    @Column(name = "site_id", length = 50)
+    private String siteId;
+
+    @OneToMany(mappedBy = "dataSource", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<IntegrationSyncLog> syncLogs = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "dataSource", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<ProductionMetric> productionMetrics = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "dataSource", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<QualityMetric> qualityMetrics = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "dataSource", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<MaintenanceMetric> maintenanceMetrics = new java.util.ArrayList<>();
+
+    @OneToMany(mappedBy = "dataSource", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private java.util.List<CustomerMetric> customerMetrics = new java.util.ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

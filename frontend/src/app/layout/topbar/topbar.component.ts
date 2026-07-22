@@ -25,7 +25,7 @@ export interface SearchResultItem {
       <!-- Left: Toggle, Official Logo & Breadcrumb -->
       <div class="flex items-center space-x-6">
         <button (click)="toggleSidebar.emit()" 
-                class="p-2 rounded-xl text-gray-500 hover:text-[#0076C8] hover:bg-gray-100 transition-colors focus:outline-none"
+                class="p-2 rounded-xl text-gray-500 hover:text-[#0076C8] hover:bg-gray-100 transition-colors focus:outline-none focus:ring-2 focus:ring-[#0076C8]"
                 title="Toggle Sidebar">
           <i class="pi pi-bars text-xl"></i>
         </button>
@@ -48,7 +48,8 @@ export interface SearchResultItem {
                  [(ngModel)]="searchQuery"
                  (input)="onSearchInput()"
                  (focus)="searchFocused.set(true)"
-                 placeholder="Search OEE metrics, projects, data sources..." 
+                 (keyup.escape)="searchFocused.set(false)"
+                 [placeholder]="langService.t().searchPlaceholder" 
                  class="w-full pl-10 pr-4 py-2 bg-gray-100/80 hover:bg-gray-100 focus:bg-white text-xs font-medium text-gray-800 rounded-xl border border-transparent focus:border-[#0076C8] focus:ring-2 focus:ring-[#0076C8]/20 focus:outline-none transition-all duration-200 shadow-2xs" />
         </div>
 
@@ -78,8 +79,14 @@ export interface SearchResultItem {
         }
       </div>
 
-      <!-- Right Controls: Language Selector, Notifications, User Avatar -->
+      <!-- Right Controls: Language Selector, Notifications, User Avatar & Menu -->
       <div class="flex items-center space-x-4">
+        <!-- Live Connection Tag -->
+        <div class="hidden xl:flex items-center space-x-2 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-200 text-[11px] font-semibold">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>{{ langService.t().connected }}</span>
+        </div>
+
         <!-- Language Selector -->
         <p-dropdown [options]="languages" 
                     [(ngModel)]="currentLanguage" 
@@ -95,16 +102,23 @@ export interface SearchResultItem {
           <span class="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#F58220]"></span>
         </button>
 
-        <!-- User Profile Avatar & Role -->
+        <!-- User Profile Avatar & Dropdown -->
         @if (authService.currentUserSignal(); as user) {
-          <div class="flex items-center space-x-3 border-l border-gray-200 pl-4">
+          <div class="flex items-center space-x-3 border-l border-gray-200 pl-4 relative">
             <div class="w-9 h-9 rounded-xl bg-[#155A8A] text-white flex items-center justify-center font-black text-xs shadow-sm border border-[#0076C8]">
               {{ user.firstName[0] }}{{ user.lastName[0] }}
             </div>
-            <div class="hidden xl:block text-left text-xs">
+            <div class="hidden sm:block text-left text-xs">
               <div class="font-extrabold text-[#155A8A] tracking-tight">{{ user.firstName }} {{ user.lastName }}</div>
               <div class="text-[#666666] text-[10px] font-bold uppercase tracking-wider">{{ user.role }}</div>
             </div>
+
+            <!-- Sign Out Button -->
+            <button (click)="authService.logout()" 
+                    title="Sign Out" 
+                    class="p-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors ml-1">
+              <i class="pi pi-power-off"></i>
+            </button>
           </div>
         }
       </div>

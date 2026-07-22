@@ -8,6 +8,7 @@ import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
+import { MultiSelectModule } from 'primeng/multiselect';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
 import { MessageService, ConfirmationService } from 'primeng/api';
@@ -24,6 +25,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
     InputTextModule,
     DialogModule,
     DropdownModule,
+    MultiSelectModule,
     TagModule,
     ToastModule,
     ConfirmDialogModule
@@ -32,7 +34,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
   template: `
     <div class="space-y-6 pb-8">
       <p-toast></p-toast>
-      <p-confirmDialog header="Delete Confirmation" icon="pi pi-exclamation-triangle"></p-confirmDialog>
+      <p-confirmDialog header="Delete Confirmation" icon="pi pi-exclamation-triangle" appendTo="body"></p-confirmDialog>
 
       <!-- Header Toolbar Card -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -58,19 +60,19 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
           <ng-template pTemplate="caption">
             <div class="flex items-center justify-between pb-3">
               <span class="text-sm font-bold text-[#155A8A]">Registered Personnel ({{ users().length }})</span>
-              <div class="p-inputgroup w-72">
-                <span class="p-inputgroup-addon bg-gray-50 text-gray-400"><i class="pi pi-search"></i></span>
-                <input pInputText type="text" (input)="dt.filterGlobal($any($event.target).value, 'contains')" placeholder="Search all columns..." class="p-inputtext-sm text-xs" />
+              <div class="relative w-72">
+                <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                <input pInputText type="text" (input)="dt.filterGlobal($any($event.target).value, 'contains')" placeholder="Search all columns..." class="w-full pl-9 pr-3 py-1.5 bg-gray-50 text-xs rounded-xl border border-gray-200 focus:bg-white focus:border-[#0076C8]" />
               </div>
             </div>
           </ng-template>
 
           <ng-template pTemplate="header">
             <tr>
-              <th pSortableColumn="id">ID <p-sortIcon field="id"></p-sortIcon></th>
               <th pSortableColumn="firstName">Name <p-sortIcon field="firstName"></p-sortIcon></th>
               <th pSortableColumn="email">Email Address <p-sortIcon field="email"></p-sortIcon></th>
               <th pSortableColumn="role">Security Role <p-sortIcon field="role"></p-sortIcon></th>
+              <th>Assigned Sites</th>
               <th>Status</th>
               <th pSortableColumn="createdAt">Registered Date <p-sortIcon field="createdAt"></p-sortIcon></th>
               <th class="text-right">Actions</th>
@@ -79,7 +81,6 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
 
           <ng-template pTemplate="body" let-user>
             <tr>
-              <td class="font-bold text-gray-400">#{{ user.id }}</td>
               <td class="font-bold text-[#155A8A]">
                 <div class="flex items-center space-x-2.5">
                   <div class="w-8 h-8 rounded-xl bg-[#0076C8]/10 text-[#0076C8] font-black flex items-center justify-center text-xs border border-[#0076C8]/20">
@@ -91,6 +92,22 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
               <td class="text-xs text-gray-600 font-mono">{{ user.email }}</td>
               <td>
                 <p-tag [value]="user.role" [severity]="getRoleSeverity(user.role)"></p-tag>
+              </td>
+              <td>
+                @if (user.role === 'ADMIN' || user.role === 'DIRECTION') {
+                  <span class="text-xs font-black text-[#155A8A] flex items-center gap-1">
+                    🌍 All Sites
+                  </span>
+                } @else {
+                  <div class="flex flex-wrap gap-1 max-w-[240px]">
+                    @for (site of user.assignedSites; track site) {
+                      <p-tag [value]="getSiteLabel(site)" severity="secondary" styleClass="text-[10px] px-2 py-0.5 font-bold"></p-tag>
+                    }
+                    @if (!user.assignedSites || user.assignedSites.length === 0) {
+                      <span class="text-xs text-red-500 italic">No Sites Assigned</span>
+                    }
+                  </div>
+                }
               </td>
               <td>
                 <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-emerald-50 text-emerald-700">
@@ -108,7 +125,7 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
       </div>
 
       <!-- Add / Edit User Modal Dialog -->
-      <p-dialog [(visible)]="displayDialog" [header]="isEditMode ? 'Edit User' : 'Create New User'" [modal]="true" styleClass="w-full max-w-lg p-fluid rounded-3xl">
+      <p-dialog [(visible)]="displayDialog" [header]="isEditMode ? 'Edit User' : 'Create New User'" [modal]="true" appendTo="body" styleClass="w-full max-w-lg p-fluid rounded-3xl">
         <ng-template pTemplate="content">
           <div class="space-y-4 pt-2">
             <div class="grid grid-cols-2 gap-4">
@@ -145,6 +162,25 @@ import { ConfirmDialogModule } from 'primeng/confirmdialog';
                           styleClass="w-full">
               </p-dropdown>
             </div>
+
+            <div class="field">
+              <label class="block text-xs font-bold text-[#155A8A] uppercase mb-1">Assigned Site(s) *</label>
+              @if (currentRequest.role === 'ADMIN' || currentRequest.role === 'DIRECTION') {
+                <div class="p-3 border border-gray-200 bg-gray-50 rounded-xl text-xs font-black text-[#155A8A] flex items-center gap-1.5">
+                  🌍 All Sites
+                </div>
+              } @else {
+                <p-multiSelect 
+                  [options]="siteOptions" 
+                  [(ngModel)]="currentRequest.assignedSites" 
+                  optionLabel="label" 
+                  optionValue="value" 
+                  placeholder="Select Site Assignments"
+                  appendTo="body"
+                  styleClass="w-full">
+                </p-multiSelect>
+              }
+            </div>
           </div>
         </ng-template>
 
@@ -175,12 +211,26 @@ export class UsersComponent implements OnInit {
     { label: 'Direction / Executive', value: 'DIRECTION' }
   ];
 
+  siteOptions = [
+    { label: 'AVOCarbon Luxembourg', value: 'luxembourg' },
+    { label: 'AVOCarbon Tunisia', value: 'tunisia' },
+    { label: 'AVOCarbon France - Poitiers', value: 'france-poitiers' },
+    { label: 'AVOCarbon France - Amiens', value: 'france-amiens' },
+    { label: 'AVOCarbon Germany', value: 'germany' },
+    { label: 'AVOCarbon India', value: 'india' },
+    { label: 'AVOCarbon China - Tianjin', value: 'china-tianjin' },
+    { label: 'AVOCarbon China - Kunshan', value: 'china-kunshan' },
+    { label: 'AVOCarbon Korea', value: 'korea' },
+    { label: 'AVOCarbon Mexico', value: 'mexico' }
+  ];
+
   currentRequest: UserRequest = {
     firstName: '',
     lastName: '',
     email: '',
     password: '',
-    role: 'PRODUCTION_MANAGER'
+    role: 'PRODUCTION_MANAGER',
+    assignedSites: []
   };
 
   ngOnInit(): void {
@@ -209,7 +259,8 @@ export class UsersComponent implements OnInit {
       lastName: '',
       email: '',
       password: '',
-      role: 'PRODUCTION_MANAGER'
+      role: 'PRODUCTION_MANAGER',
+      assignedSites: []
     };
     this.displayDialog = true;
   }
@@ -222,7 +273,8 @@ export class UsersComponent implements OnInit {
       lastName: user.lastName,
       email: user.email,
       password: '',
-      role: user.role
+      role: user.role,
+      assignedSites: user.assignedSites || []
     };
     this.displayDialog = true;
   }
@@ -233,8 +285,20 @@ export class UsersComponent implements OnInit {
       return;
     }
 
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    if (!emailRegex.test(this.currentRequest.email)) {
+      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Please enter a valid email address' });
+      return;
+    }
+
     if (!this.isEditMode && (!this.currentRequest.password || this.currentRequest.password.trim() === '')) {
       this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Password is required when registering a new user' });
+      return;
+    }
+
+    if ((this.currentRequest.role === 'PRODUCTION_MANAGER' || this.currentRequest.role === 'QUALITY_MANAGER') &&
+        (!this.currentRequest.assignedSites || this.currentRequest.assignedSites.length === 0)) {
+      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Please assign at least one site for Managers' });
       return;
     }
 
@@ -242,7 +306,10 @@ export class UsersComponent implements OnInit {
       firstName: this.currentRequest.firstName,
       lastName: this.currentRequest.lastName,
       email: this.currentRequest.email,
-      role: this.currentRequest.role
+      role: this.currentRequest.role,
+      assignedSites: (this.currentRequest.role === 'ADMIN' || this.currentRequest.role === 'DIRECTION')
+        ? []
+        : this.currentRequest.assignedSites || []
     };
 
     if (this.currentRequest.password && this.currentRequest.password.trim() !== '') {
@@ -293,5 +360,10 @@ export class UsersComponent implements OnInit {
       case 'DIRECTION': return 'secondary';
       default: return 'info';
     }
+  }
+
+  getSiteLabel(siteId: string): string {
+    const site = this.siteOptions.find(s => s.value === siteId);
+    return site ? site.label.replace('AVOCarbon ', '') : siteId;
   }
 }

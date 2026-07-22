@@ -29,6 +29,8 @@ public class UserResponse {
 
     private Boolean enabled;
 
+    private java.util.List<String> assignedSites;
+
     private Instant createdAt;
 
     private Instant updatedAt;

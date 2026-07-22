@@ -24,11 +24,11 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepository;
     private final UserRepository userRepository;
+    private final com.avocarbon.platform.module.identity.SecurityHelper securityHelper;
 
     @Override
     public ProjectResponse createProject(ProjectRequest request) {
-
-        log.info("Creating project {}", request.getName());
+        securityHelper.validateSiteAccess(request.getSiteId());
 
         User owner = userRepository.findById(request.getOwnerId())
                 .orElseThrow(() ->
@@ -42,6 +42,7 @@ public class ProjectServiceImpl implements ProjectService {
                 .status(ProjectStatus.CREATED)
                 .startDate(request.getStartDate())
                 .owner(owner)
+                .siteId(request.getSiteId())
                 .build();
 
         Project saved = projectRepository.save(project);
@@ -55,6 +56,7 @@ public class ProjectServiceImpl implements ProjectService {
 
         return projectRepository.findAll()
                 .stream()
+                .filter(p -> securityHelper.isSiteAuthorized(p.getSiteId()))
                 .map(this::mapToResponse)
                 .toList();
     }
@@ -69,6 +71,8 @@ public class ProjectServiceImpl implements ProjectService {
                                 "Project not found with id : " + id
                         ));
 
+        securityHelper.validateSiteAccess(project.getSiteId());
+
         return mapToResponse(project);
     }
 
@@ -81,6 +85,9 @@ public class ProjectServiceImpl implements ProjectService {
                                 "Project not found with id : " + id
                         ));
 
+        securityHelper.validateSiteAccess(project.getSiteId());
+        securityHelper.validateSiteAccess(request.getSiteId());
+
         User owner = userRepository.findById(request.getOwnerId())
                 .orElseThrow(() ->
                         new ResourceNotFoundException(
@@ -91,6 +98,7 @@ public class ProjectServiceImpl implements ProjectService {
         project.setDescription(request.getDescription());
         project.setStartDate(request.getStartDate());
         project.setOwner(owner);
+        project.setSiteId(request.getSiteId());
 
         Project updated = projectRepository.save(project);
 
@@ -105,6 +113,8 @@ public class ProjectServiceImpl implements ProjectService {
                         new ResourceNotFoundException(
                                 "Project not found with id : " + id
                         ));
+
+        securityHelper.validateSiteAccess(project.getSiteId());
 
         projectRepository.delete(project);
     }
@@ -123,6 +133,7 @@ public class ProjectServiceImpl implements ProjectService {
                                 + project.getOwner().getLastName()
                 )
                 .startDate(project.getStartDate())
+                .siteId(project.getSiteId())
                 .createdAt(project.getCreatedAt())
                 .updatedAt(project.getUpdatedAt())
                 .build();

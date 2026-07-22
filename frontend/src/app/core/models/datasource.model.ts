@@ -7,6 +7,7 @@ export interface DataSourceRequest {
   token: string;
   type: DataSourceType;
   syncFrequency: SyncFrequency;
+  siteId: string;
 }
 
 export interface DataSourceResponse {
@@ -18,6 +19,7 @@ export interface DataSourceResponse {
   syncFrequency: SyncFrequency;
   projectId: number;
   projectName: string;
+  siteId: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -115,6 +115,7 @@ class Sprint2IntegrationTest {
                 .description("Project scrap rate tracking.")
                 .ownerId(testUser.getId())
                 .startDate(Instant.now())
+                .siteId("luxembourg")
                 .build();
 
         MvcResult projectResult = mockMvc.perform(post("/api/projects")
@@ -133,6 +134,7 @@ class Sprint2IntegrationTest {
                 .token("mock-token-1")
                 .type(DataSourceType.PRODUCTION)
                 .syncFrequency(SyncFrequency.DAILY)
+                .siteId("luxembourg")
                 .build();
 
         MvcResult prodDsResult = mockMvc.perform(post("/api/projects/" + projectId + "/datasources")
@@ -151,6 +153,7 @@ class Sprint2IntegrationTest {
                 .token("mock-token-2")
                 .type(DataSourceType.QUALITY)
                 .syncFrequency(SyncFrequency.DAILY)
+                .siteId("luxembourg")
                 .build();
 
         MvcResult qualDsResult = mockMvc.perform(post("/api/projects/" + projectId + "/datasources")

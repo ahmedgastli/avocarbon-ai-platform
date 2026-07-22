@@ -1,8 +1,10 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { AnalyticsService } from '../../core/services/analytics.service';
 import { ProjectService } from '../../core/services/project.service';
+import { SiteFilterService } from '../../core/services/site-filter.service';
+import { GlobalOperationsService } from '../../core/services/global-operations.service';
 import { KpiAggregationResponse } from '../../core/models/analytics.model';
 import { ProjectResponse } from '../../core/models/project.model';
 import { CardModule } from 'primeng/card';
@@ -12,6 +14,8 @@ import { ChartModule } from 'primeng/chart';
 import { SkeletonModule } from 'primeng/skeleton';
 import { TagModule } from 'primeng/tag';
 import { TableModule } from 'primeng/table';
+
+import { AuthService } from '../../core/services/auth.service';
 
 @Component({
   selector: 'app-dashboard',
@@ -29,6 +33,25 @@ import { TableModule } from 'primeng/table';
   ],
   template: `
     <div class="space-y-8 pb-8">
+      <!-- Active Site Filter Banner -->
+      @if (siteFilterService.selectedSiteName(); as name) {
+        <div class="flex items-center justify-between bg-[#0076C8] text-white px-6 py-3.5 rounded-2xl shadow-md border border-[#155A8A] animate-fadein">
+          <div class="flex items-center space-x-3 text-xs">
+            <i class="pi pi-globe text-base animate-spin" style="animation-duration: 4s"></i>
+            <div>
+              <span class="font-black uppercase tracking-wider">Scoped Workspace Active</span>
+              <span class="mx-2 opacity-50">|</span>
+              <span class="font-medium">Displaying telemetry scoped to site: </span>
+              <span class="font-extrabold underline decoration-[#F58220] decoration-2">{{ name }}</span>
+            </div>
+          </div>
+          <button (click)="clearSiteScope()" 
+                  class="px-3 py-1 bg-white/10 hover:bg-white/20 rounded-lg text-[10px] font-black uppercase tracking-wider transition-colors border border-white/20">
+            Clear Scope Filter
+          </button>
+        </div>
+      }
+
       <!-- Executive Dashboard Top Header -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
         <div>
@@ -174,7 +197,7 @@ import { TableModule } from 'primeng/table';
                   <div class="w-2 h-2 rounded-full bg-[#0076C8] mt-1.5 shrink-0"></div>
                   <div>
                     <div class="font-bold text-[#155A8A]">Daily KPI Aggregation Executed</div>
-                    <div class="text-gray-500">Calculated OEE 91.8% for Line 1 Optimization</div>
+                    <div class="text-gray-500">Calculated OEE for Line Optimization</div>
                     <div class="text-[10px] text-gray-400 mt-0.5">10 mins ago</div>
                   </div>
                 </div>
@@ -183,17 +206,8 @@ import { TableModule } from 'primeng/table';
                   <div class="w-2 h-2 rounded-full bg-[#F58220] mt-1.5 shrink-0"></div>
                   <div>
                     <div class="font-bold text-[#155A8A]">Manual API Synchronization Triggered</div>
-                    <div class="text-gray-500">Imported 31 data points from Line 1 Production REST API</div>
+                    <div class="text-gray-500">Imported REST API logs</div>
                     <div class="text-[10px] text-gray-400 mt-0.5">1 hour ago</div>
-                  </div>
-                </div>
-
-                <div class="flex items-start space-x-3 text-xs">
-                  <div class="w-2 h-2 rounded-full bg-emerald-500 mt-1.5 shrink-0"></div>
-                  <div>
-                    <div class="font-bold text-[#155A8A]">Quality Inspection Audit Completed</div>
-                    <div class="text-gray-500">First Pass Yield verified at 100.0%</div>
-                    <div class="text-[10px] text-gray-400 mt-0.5">3 hours ago</div>
                   </div>
                 </div>
               </div>
@@ -216,7 +230,7 @@ import { TableModule } from 'primeng/table';
               </span>
             </div>
 
-            <p-table [value]="recentSyncLogs" styleClass="p-datatable-striped p-datatable-sm">
+            <p-table [value]="filteredSyncLogs()" styleClass="p-datatable-striped p-datatable-sm">
               <ng-template pTemplate="header">
                 <tr>
                   <th>Sync ID</th>
@@ -255,9 +269,12 @@ import { TableModule } from 'primeng/table';
 export class DashboardComponent implements OnInit {
   private analyticsService = inject(AnalyticsService);
   private projectService = inject(ProjectService);
+  siteFilterService = inject(SiteFilterService);
+  private operationsService = inject(GlobalOperationsService);
+  authService = inject(AuthService);
 
   projects = signal<ProjectResponse[]>([]);
-  selectedProjectId = 1;
+  selectedProjectId = 0;
   summary = signal<KpiAggregationResponse | null>(null);
   history = signal<KpiAggregationResponse[]>([]);
   loading = signal<boolean>(true);
@@ -266,22 +283,68 @@ export class DashboardComponent implements OnInit {
   lineChartOptions: any;
 
   recentSyncLogs = [
-    { id: 101, name: 'Line 1 Production REST API', type: 'PRODUCTION', status: 'COMPLETED', records: 31, timestamp: new Date() },
-    { id: 102, name: 'Line 1 Quality Assurance Connector', type: 'QUALITY', status: 'COMPLETED', records: 31, timestamp: new Date(Date.now() - 3600000) },
-    { id: 103, name: 'Customer Satisfaction Audit API', type: 'CUSTOMER', status: 'COMPLETED', records: 30, timestamp: new Date(Date.now() - 7200000) }
+    { id: 101, name: 'Line 1 Production REST API', type: 'PRODUCTION', status: 'COMPLETED', records: 31, timestamp: new Date(), siteId: 'luxembourg' },
+    { id: 102, name: 'Line 1 Quality Assurance Connector', type: 'QUALITY', status: 'COMPLETED', records: 31, timestamp: new Date(Date.now() - 3600000), siteId: 'luxembourg' },
+    { id: 103, name: 'Customer Satisfaction Audit API', type: 'CUSTOMER', status: 'COMPLETED', records: 30, timestamp: new Date(Date.now() - 7200000), siteId: 'tunisia' }
   ];
+
+  filteredSyncLogs = computed(() => {
+    const activeSite = this.siteFilterService.selectedSiteId();
+    let logs = this.recentSyncLogs;
+    if (activeSite) {
+      logs = logs.filter(log => log.siteId === activeSite);
+    }
+    return logs.filter(log => this.authService.isSiteAuthorized(log.siteId));
+  });
+
+  constructor() {
+    effect(() => {
+      // Reload projects dynamically when map filter site changes
+      this.siteFilterService.selectedSiteId();
+      this.loadProjects();
+    });
+  }
 
   ngOnInit(): void {
     this.setupChartOptions();
+
+    // Auto-select first authorized site context for site-restricted roles on initialization
+    const user = this.authService.currentUserSignal();
+    const activeSite = this.siteFilterService.selectedSiteId();
+    if (!activeSite && user && user.role !== 'ADMIN' && user.role !== 'DIRECTION') {
+      if (user.assignedSites && user.assignedSites.length > 0) {
+        const firstSiteId = user.assignedSites[0];
+        this.operationsService.getSites().subscribe({
+          next: (sites) => {
+            const site = sites.find(s => s.id === firstSiteId);
+            if (site) {
+              this.siteFilterService.selectSite(firstSiteId, site.name);
+            }
+          }
+        });
+      }
+    }
+
     this.loadProjects();
   }
 
   loadProjects(): void {
     this.projectService.getAllProjects().subscribe({
       next: (projs) => {
-        this.projects.set(projs);
-        if (projs.length > 0) {
-          this.selectedProjectId = projs[0].id;
+        const activeSite = this.siteFilterService.selectedSiteId();
+        let filtered = projs;
+        if (activeSite) {
+          filtered = projs.filter(p => p.siteId === activeSite);
+        }
+        filtered = filtered.filter(p => this.authService.isSiteAuthorized(p.siteId));
+
+        this.projects.set(filtered);
+        if (filtered.length > 0) {
+          if (!filtered.some(p => p.id === this.selectedProjectId)) {
+            this.selectedProjectId = filtered[0].id;
+          }
+        } else {
+          this.selectedProjectId = 0;
         }
         this.loadDashboardData();
       },
@@ -296,19 +359,84 @@ export class DashboardComponent implements OnInit {
   loadDashboardData(): void {
     this.loading.set(true);
 
-    this.analyticsService.getKpiSummary(this.selectedProjectId).subscribe({
-      next: (sum) => this.summary.set(sum),
-      error: () => this.summary.set(null)
-    });
+    const activeSite = this.siteFilterService.selectedSiteId();
 
-    this.analyticsService.getKpiHistory(this.selectedProjectId).subscribe({
-      next: (hist) => {
-        this.history.set(hist);
-        this.updateLineChart(hist);
-        this.loading.set(false);
-      },
-      error: () => this.loading.set(false)
-    });
+    if (!activeSite && this.selectedProjectId === 0) {
+      this.summary.set(null);
+      this.history.set([]);
+      this.loading.set(false);
+      return;
+    }
+
+    if (activeSite) {
+      // Fetch site statistics from operations metadata
+      this.operationsService.getSites().subscribe({
+        next: (sites) => {
+          const site = sites.find(s => s.id === activeSite);
+          if (site) {
+            const mockSummary: KpiAggregationResponse = {
+              id: 1,
+              projectId: 1,
+              projectName: site.name,
+              oee: site.metrics.oee,
+              availability: site.metrics.availability,
+              performance: site.metrics.performance,
+              quality: site.metrics.quality,
+              scrapRate: site.metrics.scrapRate,
+              customerSatisfaction: 0.95,
+              maintenanceDowntime: 1.5,
+              calculationTimestamp: new Date().toISOString(),
+              aggregationPeriod: 'DAILY'
+            };
+            this.summary.set(mockSummary);
+
+            // Generate timeline based on site baseline
+            const mockHistory: KpiAggregationResponse[] = Array.from({ length: 31 }).map((_, i) => {
+              const variance = (Math.random() - 0.5) * 0.05;
+              const date = new Date();
+              date.setDate(date.getDate() - (30 - i));
+              return {
+                id: i + 1,
+                projectId: 1,
+                projectName: site.name,
+                oee: Math.max(0, Math.min(1, site.metrics.oee + variance)),
+                availability: Math.max(0, Math.min(1, site.metrics.availability + variance)),
+                performance: Math.max(0, Math.min(1, site.metrics.performance + variance)),
+                quality: Math.max(0, Math.min(1, site.metrics.quality + variance)),
+                scrapRate: Math.max(0, Math.min(0.1, site.metrics.scrapRate - variance * 0.2)),
+                customerSatisfaction: 0.95,
+                maintenanceDowntime: 1.5,
+                calculationTimestamp: date.toISOString(),
+                aggregationPeriod: 'DAILY'
+              };
+            });
+
+            this.history.set(mockHistory);
+            this.updateLineChart(mockHistory);
+          }
+          this.loading.set(false);
+        }
+      });
+    } else {
+      // Standard global load
+      this.analyticsService.getKpiSummary(this.selectedProjectId).subscribe({
+        next: (sum) => this.summary.set(sum),
+        error: () => this.summary.set(null)
+      });
+
+      this.analyticsService.getKpiHistory(this.selectedProjectId).subscribe({
+        next: (hist) => {
+          this.history.set(hist);
+          this.updateLineChart(hist);
+          this.loading.set(false);
+        },
+        error: () => this.loading.set(false)
+      });
+    }
+  }
+
+  clearSiteScope(): void {
+    this.siteFilterService.clearFilter();
   }
 
   formatPercent(val?: number): string {
@@ -321,7 +449,7 @@ export class DashboardComponent implements OnInit {
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false } },
-        y: { min: 0.5, max: 1.0, ticks: { callback: (v: number) => (v * 100) + '%' } }
+        y: { min: 0.0, max: 1.0, ticks: { callback: (v: number) => (v * 100) + '%' } }
       },
       responsive: true,
       maintainAspectRatio: false

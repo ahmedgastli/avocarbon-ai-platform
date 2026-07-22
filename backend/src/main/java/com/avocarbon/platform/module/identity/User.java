@@ -60,6 +60,12 @@ public class User implements UserDetails {
     @Column(nullable = false)
     private Boolean enabled = true;
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_sites", joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "site_id")
+    @Builder.Default
+    private List<String> assignedSites = new ArrayList<>();
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

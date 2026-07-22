@@ -5,6 +5,7 @@ export interface ProjectRequest {
   description?: string;
   ownerId: number;
   startDate: string;
+  siteId: string;
 }
 
 export interface ProjectResponse {
@@ -15,6 +16,7 @@ export interface ProjectResponse {
   ownerId: number;
   ownerName: string;
   startDate: string;
+  siteId: string;
   createdAt: string;
   updatedAt: string;
 }

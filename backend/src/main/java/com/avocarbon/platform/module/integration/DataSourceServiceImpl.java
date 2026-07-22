@@ -18,13 +18,15 @@ public class DataSourceServiceImpl implements DataSourceService {
 
     private final DataSourceRepository dataSourceRepository;
     private final ProjectRepository projectRepository;
+    private final com.avocarbon.platform.module.identity.SecurityHelper securityHelper;
 
     @Override
     public DataSourceResponse createDataSource(Long projectId, DataSourceRequest request) {
-        log.info("Creating data source {} for project {}", request.getName(), projectId);
-
         Project project = projectRepository.findById(projectId)
                 .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+
+        securityHelper.validateSiteAccess(project.getSiteId());
+        securityHelper.validateSiteAccess(request.getSiteId());
 
         DataSource dataSource = DataSource.builder()
                 .name(request.getName())
@@ -33,6 +35,7 @@ public class DataSourceServiceImpl implements DataSourceService {
                 .type(request.getType())
                 .syncFrequency(request.getSyncFrequency())
                 .project(project)
+                .siteId(request.getSiteId())
                 .build();
 
         DataSource saved = dataSourceRepository.save(dataSource);
@@ -42,10 +45,11 @@ public class DataSourceServiceImpl implements DataSourceService {
     @Override
     @Transactional(readOnly = true)
     public List<DataSourceResponse> getDataSourcesByProjectId(Long projectId) {
-        log.info("Fetching data sources for project {}", projectId);
-        if (!projectRepository.existsById(projectId)) {
-            throw new ResourceNotFoundException("Project not found with id: " + projectId);
-        }
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(() -> new ResourceNotFoundException("Project not found with id: " + projectId));
+
+        securityHelper.validateSiteAccess(project.getSiteId());
+
         return dataSourceRepository.findByProjectId(projectId)
                 .stream()
                 .map(this::mapToResponse)
@@ -58,20 +62,26 @@ public class DataSourceServiceImpl implements DataSourceService {
         log.info("Fetching data source {}", id);
         DataSource dataSource = dataSourceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Data source not found with id: " + id));
+
+        securityHelper.validateSiteAccess(dataSource.getSiteId());
+
         return mapToResponse(dataSource);
     }
 
     @Override
     public DataSourceResponse updateDataSource(Long id, DataSourceRequest request) {
-        log.info("Updating data source {}", id);
         DataSource dataSource = dataSourceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Data source not found with id: " + id));
+
+        securityHelper.validateSiteAccess(dataSource.getSiteId());
+        securityHelper.validateSiteAccess(request.getSiteId());
 
         dataSource.setName(request.getName());
         dataSource.setUrl(request.getUrl());
         dataSource.setToken(request.getToken());
         dataSource.setType(request.getType());
         dataSource.setSyncFrequency(request.getSyncFrequency());
+        dataSource.setSiteId(request.getSiteId());
 
         DataSource updated = dataSourceRepository.save(dataSource);
         return mapToResponse(updated);
@@ -82,6 +92,9 @@ public class DataSourceServiceImpl implements DataSourceService {
         log.info("Deleting data source {}", id);
         DataSource dataSource = dataSourceRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Data source not found with id: " + id));
+
+        securityHelper.validateSiteAccess(dataSource.getSiteId());
+
         dataSourceRepository.delete(dataSource);
     }
 
@@ -95,6 +108,7 @@ public class DataSourceServiceImpl implements DataSourceService {
                 .syncFrequency(dataSource.getSyncFrequency())
                 .projectId(dataSource.getProject().getId())
                 .projectName(dataSource.getProject().getName())
+                .siteId(dataSource.getSiteId())
                 .createdAt(dataSource.getCreatedAt())
                 .updatedAt(dataSource.getUpdatedAt())
                 .build();

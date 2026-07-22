@@ -1,18 +1,22 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, effect } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DataSourceService } from '../../core/services/datasource.service';
 import { ProjectService } from '../../core/services/project.service';
+import { AuthService } from '../../core/services/auth.service';
+import { SiteFilterService } from '../../core/services/site-filter.service';
 import { DataSourceRequest, DataSourceResponse, DataSourceType, SyncFrequency } from '../../core/models/datasource.model';
 import { ProjectResponse } from '../../core/models/project.model';
-import { CardModule } from 'primeng/card';
+import { TableModule } from 'primeng/table';
 import { ButtonModule } from 'primeng/button';
 import { InputTextModule } from 'primeng/inputtext';
 import { DialogModule } from 'primeng/dialog';
 import { DropdownModule } from 'primeng/dropdown';
 import { TagModule } from 'primeng/tag';
 import { ToastModule } from 'primeng/toast';
-import { MessageService } from 'primeng/api';
+import { TooltipModule } from 'primeng/tooltip';
+import { ConfirmDialogModule } from 'primeng/confirmdialog';
+import { MessageService, ConfirmationService } from 'primeng/api';
 
 @Component({
   selector: 'app-datasources',
@@ -20,18 +24,21 @@ import { MessageService } from 'primeng/api';
   imports: [
     CommonModule,
     FormsModule,
-    CardModule,
+    TableModule,
     ButtonModule,
     InputTextModule,
     DialogModule,
     DropdownModule,
     TagModule,
-    ToastModule
+    ToastModule,
+    TooltipModule,
+    ConfirmDialogModule
   ],
-  providers: [MessageService],
+  providers: [MessageService, ConfirmationService],
   template: `
     <div class="space-y-6 pb-8">
       <p-toast></p-toast>
+      <p-confirmDialog header="Delete Confirmation" icon="pi pi-exclamation-triangle" appendTo="body"></p-confirmDialog>
 
       <!-- Header Toolbar Card -->
       <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl shadow-sm border border-gray-100">
@@ -41,6 +48,7 @@ import { MessageService } from 'primeng/api';
         </div>
 
         <div class="flex items-center space-x-3">
+          <label class="text-xs font-bold text-[#155A8A] uppercase tracking-wider hidden sm:inline">Project Scope:</label>
           <p-dropdown 
             [options]="projects()" 
             optionLabel="name" 
@@ -48,59 +56,134 @@ import { MessageService } from 'primeng/api';
             [(ngModel)]="selectedProjectId" 
             (onChange)="loadDataSources()"
             placeholder="Select Project"
-            styleClass="w-64 p-inputtext-sm rounded-xl">
+            appendTo="body"
+            styleClass="w-64 p-inputtext-sm rounded-xl"
+            [disabled]="projects().length === 0">
           </p-dropdown>
-          <button pButton label="Add Data Source" icon="pi pi-plus" class="p-button-accent" (click)="openCreateDialog()"></button>
+          <button pButton label="Add Data Source" icon="pi pi-plus" class="p-button-accent" (click)="openCreateDialog()" [disabled]="projects().length === 0"></button>
         </div>
       </div>
 
-      <!-- Data Source Cards Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        @for (ds of dataSources(); track ds.id) {
-          <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100 flex flex-col justify-between hover:shadow-xl hover:-translate-y-1 transition-all duration-300 relative group">
-            <div>
-              <div class="flex items-center justify-between mb-4">
-                <p-tag [value]="ds.type" [severity]="getTypeSeverity(ds.type)"></p-tag>
-                <span class="text-[11px] font-bold text-gray-400 uppercase flex items-center bg-gray-50 px-2 py-0.5 rounded-md border border-gray-100">
-                  <i class="pi pi-sync mr-1 text-[10px]"></i> {{ ds.syncFrequency }}
+      <!-- Data Source Table Card -->
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
+        <p-table 
+          [value]="dataSources()" 
+          [paginator]="true" 
+          [rows]="10" 
+          [loading]="loading()"
+          [globalFilterFields]="['name', 'url', 'type', 'siteId']"
+          #dt
+          styleClass="p-datatable-striped">
+          
+          <ng-template pTemplate="caption">
+            <div class="flex items-center justify-between pb-3">
+              <span class="text-sm font-bold text-[#155A8A]">Active API Connectors ({{ dataSources().length }})</span>
+              <div class="relative w-72">
+                <i class="pi pi-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs pointer-events-none"></i>
+                <input pInputText type="text" (input)="dt.filterGlobal($any($event.target).value, 'contains')" placeholder="Search connectors..." class="w-full pl-9 pr-3 py-1.5 bg-gray-50 text-xs rounded-xl border border-gray-200 focus:bg-white focus:border-[#0076C8]" />
+              </div>
+            </div>
+          </ng-template>
+
+          <ng-template pTemplate="header">
+            <tr>
+              <th pSortableColumn="name">Connector Name <p-sortIcon field="name"></p-sortIcon></th>
+              <th pSortableColumn="siteId">Industrial Site <p-sortIcon field="siteId"></p-sortIcon></th>
+              <th pSortableColumn="type">API Type <p-sortIcon field="type"></p-sortIcon></th>
+              <th>Endpoint URL</th>
+              <th>Connection Status</th>
+              <th>Last Synchronization</th>
+              <th pSortableColumn="createdAt">Created Date <p-sortIcon field="createdAt"></p-sortIcon></th>
+              <th class="text-right">Actions</th>
+            </tr>
+          </ng-template>
+
+          <ng-template pTemplate="body" let-ds>
+            <tr>
+              <td class="font-bold text-[#155A8A]">{{ ds.name }}</td>
+              <td>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-xl text-xs font-black bg-[#155A8A]/10 text-[#155A8A] border border-[#155A8A]/20">
+                  🏭 {{ getSiteLabel(ds.siteId) }}
                 </span>
-              </div>
+              </td>
+              <td>
+                <p-tag [value]="ds.type" [severity]="getTypeSeverity(ds.type)"></p-tag>
+              </td>
+              <td>
+                <span class="text-xs font-mono text-gray-600 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200 block max-w-xs truncate" [title]="ds.url">
+                  {{ ds.url }}
+                </span>
+              </td>
+              <td>
+                <div class="flex items-center space-x-1.5 text-xs text-emerald-600 font-black">
+                  <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                  <span>Active</span>
+                </div>
+              </td>
+              <td class="text-xs text-gray-600 font-medium">
+                {{ ds.updatedAt ? (ds.updatedAt | date:'medium') : 'Never' }}
+              </td>
+              <td class="text-xs text-gray-500 font-medium">
+                {{ ds.createdAt | date:'mediumDate' }}
+              </td>
+              <td class="text-right space-x-2 whitespace-nowrap">
+                <button pButton 
+                        icon="pi pi-pencil" 
+                        class="p-button-rounded p-button-text p-button-info p-button-sm"
+                        pTooltip="Edit Connector" 
+                        tooltipPosition="top"
+                        (click)="openEditDialog(ds)"
+                        [disabled]="deletingId() === ds.id || syncingId() === ds.id"></button>
 
-              <h3 class="text-lg font-black text-[#155A8A] mb-1 group-hover:text-[#0076C8] transition-colors">{{ ds.name }}</h3>
-              <p class="text-xs text-gray-500 font-mono bg-gray-50 p-2.5 rounded-xl border border-gray-200 truncate mb-4">{{ ds.url }}</p>
-            </div>
+                <button pButton 
+                        [icon]="syncingId() === ds.id ? 'pi pi-spin pi-spinner' : 'pi pi-sync'" 
+                        class="p-button-rounded p-button-text p-button-success p-button-sm"
+                        pTooltip="Sync Connector" 
+                        tooltipPosition="top"
+                        (click)="triggerSync(ds)"
+                        [disabled]="deletingId() === ds.id || syncingId() === ds.id"></button>
 
-            <!-- Card Actions -->
-            <div class="pt-4 border-t border-gray-100 flex items-center justify-between">
-              <div class="flex items-center space-x-2 text-xs text-emerald-600 font-bold">
-                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Active</span>
-              </div>
+                <button pButton 
+                        [icon]="deletingId() === ds.id ? 'pi pi-spin pi-spinner' : 'pi pi-trash'" 
+                        class="p-button-rounded p-button-text p-button-danger p-button-sm"
+                        pTooltip="Delete Connector" 
+                        tooltipPosition="top"
+                        (click)="confirmDelete(ds)"
+                        [disabled]="deletingId() === ds.id || syncingId() === ds.id"></button>
+              </td>
+            </tr>
+          </ng-template>
 
-              <button pButton 
-                      [label]="syncingId() === ds.id ? 'Syncing...' : 'Sync Now'" 
-                      [icon]="syncingId() === ds.id ? 'pi pi-spin pi-spinner' : 'pi pi-refresh'" 
-                      class="p-button-sm p-button-outlined p-button-primary"
-                      [disabled]="syncingId() === ds.id"
-                      (click)="triggerSync(ds)"></button>
-            </div>
-          </div>
-        } @empty {
-          <div class="col-span-full bg-white p-16 rounded-3xl shadow-sm border border-gray-100 text-center text-gray-400">
-            <i class="pi pi-database text-5xl mb-3 text-gray-300"></i>
-            <p class="text-base font-bold text-[#155A8A]">No Data Sources registered for this project.</p>
-            <p class="text-xs mt-1 text-[#666666]">Click "Add Data Source" to connect an internal API.</p>
-          </div>
-        }
+          <ng-template pTemplate="emptymessage">
+            <tr>
+              <td colspan="8" class="text-center p-12 text-gray-400 text-sm font-medium">
+                <i class="pi pi-database text-4xl mb-3 text-gray-300 block"></i>
+                <span>No API Data Source Connectors registered for this project.</span>
+              </td>
+            </tr>
+          </ng-template>
+        </p-table>
       </div>
 
-      <!-- Modal Dialog -->
-      <p-dialog [(visible)]="displayDialog" header="Add API Data Source" [modal]="true" styleClass="w-full max-w-lg p-fluid rounded-3xl">
+      <!-- Add / Edit Modal Dialog -->
+      <p-dialog [(visible)]="displayDialog" [header]="isEditMode ? 'Edit API Data Source' : 'Add API Data Source'" [modal]="true" appendTo="body" styleClass="w-full max-w-lg p-fluid rounded-3xl">
         <ng-template pTemplate="content">
           <div class="space-y-4 pt-2">
             <div class="field">
               <label class="block text-xs font-bold text-[#155A8A] uppercase mb-1">Connector Name *</label>
               <input pInputText [(ngModel)]="currentRequest.name" placeholder="e.g. Line 1 Production API" required />
+            </div>
+
+            <div class="field">
+              <label class="block text-xs font-bold text-[#155A8A] uppercase mb-1">Industrial Site Scope *</label>
+              <p-dropdown [options]="getAuthorizedSiteOptions()" 
+                          optionLabel="label" 
+                          optionValue="value" 
+                          [(ngModel)]="currentRequest.siteId" 
+                          placeholder="Select Plant Site"
+                          appendTo="body"
+                          styleClass="w-full">
+              </p-dropdown>
             </div>
 
             <div class="field">
@@ -127,7 +210,7 @@ import { MessageService } from 'primeng/api';
 
         <ng-template pTemplate="footer">
           <button pButton label="Cancel" icon="pi pi-times" class="p-button-text" (click)="displayDialog = false"></button>
-          <button pButton label="Add Connector" icon="pi pi-check" class="p-button-accent" (click)="saveDataSource()"></button>
+          <button pButton [label]="isEditMode ? 'Save Connector' : 'Add Connector'" icon="pi pi-check" class="p-button-accent" (click)="saveDataSource()"></button>
         </ng-template>
       </p-dialog>
     </div>
@@ -136,14 +219,21 @@ import { MessageService } from 'primeng/api';
 export class DataSourcesComponent implements OnInit {
   private dataSourceService = inject(DataSourceService);
   private projectService = inject(ProjectService);
+  authService = inject(AuthService);
   private messageService = inject(MessageService);
+  private confirmationService = inject(ConfirmationService);
+  siteFilterService = inject(SiteFilterService);
 
   projects = signal<ProjectResponse[]>([]);
-  selectedProjectId = 1;
+  selectedProjectId = 0;
   dataSources = signal<DataSourceResponse[]>([]);
   syncingId = signal<number | null>(null);
+  deletingId = signal<number | null>(null);
+  loading = signal<boolean>(false);
 
   displayDialog = false;
+  isEditMode = false;
+  selectedDataSourceId: number | null = null;
 
   typeOptions = [
     { label: 'PRODUCTION', value: 'PRODUCTION' },
@@ -159,57 +249,196 @@ export class DataSourcesComponent implements OnInit {
     { label: 'MANUAL', value: 'MANUAL' }
   ];
 
+  siteOptions = [
+    { label: 'AVOCarbon Luxembourg (Head Office)', value: 'luxembourg' },
+    { label: 'AVOCarbon Tunisia', value: 'tunisia' },
+    { label: 'AVOCarbon France - Poitiers', value: 'france-poitiers' },
+    { label: 'AVOCarbon France - Amiens', value: 'france-amiens' },
+    { label: 'AVOCarbon Germany', value: 'germany' },
+    { label: 'AVOCarbon India', value: 'india' },
+    { label: 'AVOCarbon China - Tianjin', value: 'china-tianjin' },
+    { label: 'AVOCarbon China - Kunshan', value: 'china-kunshan' },
+    { label: 'AVOCarbon Korea', value: 'korea' },
+    { label: 'AVOCarbon Mexico', value: 'mexico' }
+  ];
+
   currentRequest: DataSourceRequest = {
     name: '',
     url: '',
     token: '',
     type: 'PRODUCTION',
-    syncFrequency: 'DAILY'
+    syncFrequency: 'DAILY',
+    siteId: ''
   };
 
+  constructor() {
+    effect(() => {
+      // Reload projects list to match the active site filter!
+      this.siteFilterService.selectedSiteId();
+      this.reloadProjects();
+    });
+  }
+
   ngOnInit(): void {
+    this.reloadProjects();
+  }
+
+  reloadProjects(): void {
     this.projectService.getAllProjects().subscribe({
       next: (projs) => {
-        this.projects.set(projs);
-        if (projs.length > 0) {
-          this.selectedProjectId = projs[0].id;
+        const activeSite = this.siteFilterService.selectedSiteId();
+        let filtered = projs;
+        if (activeSite) {
+          filtered = projs.filter(p => p.siteId === activeSite);
         }
-        this.loadDataSources();
+        filtered = filtered.filter(p => this.authService.isSiteAuthorized(p.siteId));
+
+        this.projects.set(filtered);
+        if (filtered.length > 0) {
+          if (!filtered.some(p => p.id === this.selectedProjectId)) {
+            this.selectedProjectId = filtered[0].id;
+          }
+          this.loadDataSources();
+        } else {
+          this.selectedProjectId = 0;
+          this.dataSources.set([]);
+        }
       }
     });
   }
 
   loadDataSources(): void {
+    if (this.selectedProjectId === 0) {
+      this.dataSources.set([]);
+      return;
+    }
+    this.loading.set(true);
     this.dataSourceService.getDataSourcesByProject(this.selectedProjectId).subscribe({
-      next: (dsList) => this.dataSources.set(dsList),
-      error: () => this.dataSources.set([])
+      next: (dsList) => {
+        const activeSite = this.siteFilterService.selectedSiteId();
+        let filtered = dsList;
+        if (activeSite) {
+          filtered = dsList.filter(ds => ds.siteId === activeSite);
+        }
+        filtered = filtered.filter(ds => this.authService.isSiteAuthorized(ds.siteId));
+        this.dataSources.set(filtered);
+        this.loading.set(false);
+      },
+      error: () => {
+        this.dataSources.set([]);
+        this.loading.set(false);
+      }
     });
   }
 
+  getAuthorizedSiteOptions() {
+    return this.siteOptions.filter(opt => this.authService.isSiteAuthorized(opt.value));
+  }
+
   openCreateDialog(): void {
+    this.isEditMode = false;
+    this.selectedDataSourceId = null;
+    const selectedProj = this.projects().find(p => p.id === this.selectedProjectId);
+    const authorizedSites = this.getAuthorizedSiteOptions();
+    
     this.currentRequest = {
       name: '',
       url: 'http://mock-api.avocarbon.com/prod',
       token: 'mock-token-secret',
       type: 'PRODUCTION',
-      syncFrequency: 'DAILY'
+      syncFrequency: 'DAILY',
+      siteId: selectedProj ? selectedProj.siteId : (authorizedSites.length > 0 ? authorizedSites[0].value : '')
+    };
+    this.displayDialog = true;
+  }
+
+  openEditDialog(ds: DataSourceResponse): void {
+    this.isEditMode = true;
+    this.selectedDataSourceId = ds.id;
+    this.currentRequest = {
+      name: ds.name,
+      url: ds.url,
+      token: ds.token,
+      type: ds.type,
+      syncFrequency: ds.syncFrequency,
+      siteId: ds.siteId
     };
     this.displayDialog = true;
   }
 
   saveDataSource(): void {
-    if (!this.currentRequest.name || !this.currentRequest.url) {
-      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Name and URL are required' });
+    if (!this.currentRequest.name || this.currentRequest.name.trim() === '') {
+      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Connector name is required' });
       return;
     }
 
-    this.dataSourceService.createDataSource(this.selectedProjectId, this.currentRequest).subscribe({
-      next: () => {
-        this.messageService.add({ severity: 'success', summary: 'Success', detail: 'Data source added successfully' });
-        this.displayDialog = false;
-        this.loadDataSources();
-      },
-      error: (err) => this.messageService.add({ severity: 'error', summary: 'Error', detail: err.error?.message || 'Failed to add data source' })
+    if (!this.currentRequest.siteId || this.currentRequest.siteId.trim() === '') {
+      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Site selection is required' });
+      return;
+    }
+
+    if (!this.authService.isSiteAuthorized(this.currentRequest.siteId)) {
+      this.messageService.add({ severity: 'error', summary: 'Unauthorized Site', detail: 'You do not have access permissions for this site' });
+      return;
+    }
+
+    if (!this.currentRequest.url || !this.currentRequest.url.startsWith('http')) {
+      this.messageService.add({ severity: 'error', summary: 'Validation Error', detail: 'Valid API URL starting with http:// or https:// is required' });
+      return;
+    }
+
+    if (this.isEditMode && this.selectedDataSourceId) {
+      this.dataSourceService.updateDataSource(this.selectedDataSourceId, this.currentRequest).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Connector Saved', detail: 'API Data source connector updated successfully' });
+          this.displayDialog = false;
+          this.loadDataSources();
+        },
+        error: (err) => this.messageService.add({ severity: 'error', summary: 'Save Error', detail: err.error?.message || 'Failed to update data source' })
+      });
+    } else {
+      this.dataSourceService.createDataSource(this.selectedProjectId, this.currentRequest).subscribe({
+        next: () => {
+          this.messageService.add({ severity: 'success', summary: 'Connector Added', detail: 'API Data source connector added successfully' });
+          this.displayDialog = false;
+          this.loadDataSources();
+        },
+        error: (err) => this.messageService.add({ severity: 'error', summary: 'Creation Error', detail: err.error?.message || 'Failed to add data source' })
+      });
+    }
+  }
+
+  confirmDelete(ds: DataSourceResponse): void {
+    this.confirmationService.confirm({
+      message: 'Are you sure you want to delete this API Data Source Connector? This action cannot be undone.',
+      header: 'Delete Confirmation',
+      icon: 'pi pi-exclamation-triangle',
+      acceptLabel: 'Delete',
+      rejectLabel: 'Cancel',
+      acceptButtonStyleClass: 'p-button-danger',
+      rejectButtonStyleClass: 'p-button-text',
+      accept: () => {
+        this.deletingId.set(ds.id);
+        this.dataSourceService.deleteDataSource(ds.id).subscribe({
+          next: () => {
+            this.deletingId.set(null);
+            this.messageService.add({
+              severity: 'success',
+              summary: 'Deleted Successfully',
+              detail: 'API Data Source Connector deleted successfully.'
+            });
+            this.loadDataSources();
+          },
+          error: (err) => {
+            this.deletingId.set(null);
+            this.messageService.add({
+              severity: 'error',
+              summary: 'Delete Failed',
+              detail: err.error?.message || 'Failed to delete data source connector'
+            });
+          }
+        });
+      }
     });
   }
 
@@ -223,6 +452,7 @@ export class DataSourcesComponent implements OnInit {
           summary: 'Synchronization Complete', 
           detail: `Successfully imported ${count} data points from ${ds.name}` 
         });
+        this.loadDataSources();
       },
       error: (err) => {
         this.syncingId.set(null);
@@ -239,5 +469,10 @@ export class DataSourcesComponent implements OnInit {
       case 'MAINTENANCE': return 'danger';
       default: return 'secondary';
     }
+  }
+
+  getSiteLabel(siteId: string): string {
+    const site = this.siteOptions.find(s => s.value === siteId);
+    return site ? site.label.replace('AVOCarbon ', '').replace(' (Head Office)', '') : siteId;
   }
 }
