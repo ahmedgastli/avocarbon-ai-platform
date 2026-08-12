@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.avocarbon.platform.module.identity.*;
 import com.avocarbon.platform.module.project.*;
 import com.avocarbon.platform.module.integration.*;
+import com.avocarbon.platform.module.analytics.KpiAggregationRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,6 +43,9 @@ class Sprint1IntegrationTest {
     private DataSourceRepository dataSourceRepository;
 
     @Autowired
+    private KpiAggregationRepository kpiAggregationRepository;
+
+    @Autowired
     private PasswordEncoder passwordEncoder;
 
     private String token;
@@ -50,6 +54,7 @@ class Sprint1IntegrationTest {
     @BeforeEach
     void setUp() throws Exception {
         dataSourceRepository.deleteAll();
+        kpiAggregationRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
 
