@@ -3,7 +3,6 @@ package com.avocarbon.platform;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.avocarbon.platform.module.identity.*;
 import com.avocarbon.platform.module.project.*;
-import com.avocarbon.platform.module.analytics.*;
 import com.avocarbon.platform.module.generator.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,10 +40,7 @@ class GeneratorIntegrationTest {
     private ProjectRepository projectRepository;
 
     @Autowired
-    private KpiAggregationRepository kpiAggregationRepository;
-
-    @Autowired
-    private GeneratedReportRepository generatedReportRepository;
+    private GenerationJobRepository generationJobRepository;
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -57,8 +53,7 @@ class GeneratorIntegrationTest {
 
     @BeforeEach
     void setUp() throws Exception {
-        generatedReportRepository.deleteAll();
-        kpiAggregationRepository.deleteAll();
+        generationJobRepository.deleteAll();
         projectRepository.deleteAll();
         userRepository.deleteAll();
 
@@ -122,92 +117,114 @@ class GeneratorIntegrationTest {
                 .siteId("luxembourg")
                 .build();
         projectRepository.save(project);
-
-        // 6. Seed KPI aggregation details
-        KpiAggregation kpi = KpiAggregation.builder()
-                .project(project)
-                .calculationTimestamp(Instant.now())
-                .aggregationPeriod("OVERALL")
-                .availability(0.92)
-                .performance(0.88)
-                .quality(0.98)
-                .oee(0.79)
-                .scrapRate(0.02)
-                .customerSatisfaction(94.0)
-                .maintenanceDowntime(120.0)
-                .build();
-        kpiAggregationRepository.save(kpi);
     }
 
     @Test
     void testSecurityConstraints() throws Exception {
-        GeneratedReportRequest reportRequest = GeneratedReportRequest.builder()
-                .title("Monthly OEE Evaluation")
-                .type(ReportType.OEE_ANALYSIS)
-                .promptSummary("Analyze downtime reasons")
+        GenerationJobRequest request = GenerationJobRequest.builder()
+                .name("Frontend Generation Job")
+                .type(GenerationType.ANGULAR_FULL)
+                .openApiContent("openapi: 3.0.0\ninfo:\n  title: Sample\n  version: 1.0.0\npaths:\n  /test:\n    get:\n      responses:\n        '200':\n          description: OK")
                 .build();
 
         // 1. Unauthenticated requests should return 401 Unauthorized
-        mockMvc.perform(post("/api/projects/" + project.getId() + "/reports")
+        mockMvc.perform(post("/api/projects/" + project.getId() + "/generations")
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reportRequest)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isUnauthorized());
 
         // 2. Bob lacks access to site "luxembourg" -> should return 403 Forbidden
-        mockMvc.perform(post("/api/projects/" + project.getId() + "/reports")
+        mockMvc.perform(post("/api/projects/" + project.getId() + "/generations")
                         .header("Authorization", "Bearer " + unauthorizedToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reportRequest)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isForbidden());
     }
 
     @Test
-    void testReportCRUDAndAiSimulation() throws Exception {
-        GeneratedReportRequest reportRequest = GeneratedReportRequest.builder()
-                .title("Scrap Optimization Report")
-                .type(ReportType.SCRAP_RATE_ANOMALY)
-                .promptSummary("Examine quality bottlenecks")
+    void testGenerationJobLifecycle() throws Exception {
+        String validOpenApi = "{\n" +
+                "  \"openapi\": \"3.0.0\",\n" +
+                "  \"info\": { \"title\": \"Mock App\", \"version\": \"1.0\" },\n" +
+                "  \"paths\": {\n" +
+                "    \"/users\": {\n" +
+                "      \"get\": {\n" +
+                "        \"tags\": [\"Users\"],\n" +
+                "        \"responses\": { \"200\": { \"description\": \"OK\" } }\n" +
+                "      }\n" +
+                "    }\n" +
+                "  }\n" +
+                "}";
+
+        GenerationJobRequest request = GenerationJobRequest.builder()
+                .name("Angular Test App")
+                .type(GenerationType.ANGULAR_FULL)
+                .openApiFormat("JSON")
+                .openApiContent(validOpenApi)
                 .build();
 
-        // 1. Generate Report
-        MvcResult generateResult = mockMvc.perform(post("/api/projects/" + project.getId() + "/reports")
+        // 1. Submit Generation Job
+        MvcResult submitResult = mockMvc.perform(post("/api/projects/" + project.getId() + "/generations")
                         .header("Authorization", "Bearer " + managerToken)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(reportRequest)))
+                        .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id", notNullValue()))
                 .andExpect(jsonPath("$.projectId").value(project.getId()))
-                .andExpect(jsonPath("$.title").value("Scrap Optimization Report"))
-                .andExpect(jsonPath("$.type").value("SCRAP_RATE_ANOMALY"))
-                .andExpect(jsonPath("$.content", containsString("Scrap Rate & Defects Analysis")))
-                .andExpect(jsonPath("$.content", containsString("Quality:")))
-                .andExpect(jsonPath("$.generatedByName").value("Alice Manager"))
+                .andExpect(jsonPath("$.name").value("Angular Test App"))
+                .andExpect(jsonPath("$.type").value("ANGULAR_FULL"))
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.triggeredByName").value("Alice Manager"))
                 .andReturn();
 
-        Long reportId = objectMapper.readTree(generateResult.getResponse().getContentAsString()).get("id").asLong();
+        Long jobId = objectMapper.readTree(submitResult.getResponse().getContentAsString()).get("id").asLong();
 
-        // 2. Fetch Reports for Project
-        mockMvc.perform(get("/api/projects/" + project.getId() + "/reports")
+        // 2. Poll until SUCCESS (Async execution runs in background)
+        boolean isSuccess = false;
+        int retries = 0;
+        while (!isSuccess && retries < 20) {
+            Thread.sleep(500); // Poll every 500ms
+            MvcResult pollResult = mockMvc.perform(get("/api/generations/" + jobId)
+                            .header("Authorization", "Bearer " + managerToken))
+                    .andExpect(status().isOk())
+                    .andReturn();
+            String status = objectMapper.readTree(pollResult.getResponse().getContentAsString()).get("status").asText();
+            if ("SUCCESS".equals(status)) {
+                isSuccess = true;
+            } else if ("FAILED".equals(status)) {
+                fail("Job failed unexpectedly: " + pollResult.getResponse().getContentAsString());
+            }
+            retries++;
+        }
+        assertTrue(isSuccess, "Job did not complete successfully within 10 seconds");
+
+        // 3. Fetch Jobs for Project
+        mockMvc.perform(get("/api/projects/" + project.getId() + "/generations")
                         .header("Authorization", "Bearer " + managerToken))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$", hasSize(1)))
-                .andExpect(jsonPath("$[0].id").value(reportId))
-                .andExpect(jsonPath("$[0].title").value("Scrap Optimization Report"));
+                .andExpect(jsonPath("$[0].id").value(jobId))
+                .andExpect(jsonPath("$[0].status").value("SUCCESS"));
 
-        // 3. Fetch Report Details by ID
-        mockMvc.perform(get("/api/reports/" + reportId)
+        // 4. Download Generated ZIP
+        mockMvc.perform(get("/api/generations/" + jobId + "/download")
                         .header("Authorization", "Bearer " + managerToken))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.id").value(reportId))
-                .andExpect(jsonPath("$.content", containsString("AI Analysis")));
+                .andExpect(result -> {
+                    String disposition = result.getResponse().getHeader("Content-Disposition");
+                    assertNotNull(disposition);
+                    assertTrue(disposition.contains("attachment"));
+                    assertTrue(disposition.contains("angular-test-app-angular.zip"));
+                    assertTrue(result.getResponse().getContentAsByteArray().length > 0);
+                });
 
-        // 4. Delete Report
-        mockMvc.perform(delete("/api/reports/" + reportId)
+        // 5. Delete Job
+        mockMvc.perform(delete("/api/generations/" + jobId)
                         .header("Authorization", "Bearer " + managerToken))
                 .andExpect(status().isNoContent());
 
-        // 5. Verify Deleted
-        mockMvc.perform(get("/api/reports/" + reportId)
+        // 6. Verify Deleted
+        mockMvc.perform(get("/api/generations/" + jobId)
                         .header("Authorization", "Bearer " + managerToken))
                 .andExpect(status().isNotFound());
     }

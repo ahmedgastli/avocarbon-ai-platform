@@ -1,0 +1,27 @@
+{
+  "name": "mcp-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "tsx src/index.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@azure/openai": "^2.0.0",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "openai": "^7.5.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.2.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2"
+  }
+}

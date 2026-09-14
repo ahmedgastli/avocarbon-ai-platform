@@ -1,0 +1,31 @@
+# Java
+backend/target/
+
+# Node
+frontend/node_modules/
+mcp-server/node_modules/
+
+# Angular
+frontend/dist/
+frontend/.angular/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Generated/runtime files
+storage/
+backend/storage/

@@ -10,6 +10,40 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d avocarbon"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    image: avocarbon-backend:latest
+    container_name: avocarbon-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/avocarbon
+      SPRING_DATASOURCE_USERNAME: postgres
+      SPRING_DATASOURCE_PASSWORD: postgres
+      APP_MCP_SERVER_URL: http://mcp-server:8081
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mcp-server:
+    image: avocarbon-mcp:latest
+    container_name: avocarbon-mcp
+    restart: unless-stopped
+
+  frontend:
+    image: avocarbon-frontend:latest
+    container_name: avocarbon-frontend
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
     restart: unless-stopped
 
 volumes:

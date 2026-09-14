@@ -1,6 +1,7 @@
 package com.avocarbon.platform.module.project;
 
 import java.time.Instant;
+import com.avocarbon.platform.module.generator.GenerationJob;
 import com.avocarbon.platform.module.identity.User;
 
 import jakarta.persistence.*;
@@ -14,6 +15,9 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Project entity representing a project in the AVOCarbon AI Platform.
@@ -75,5 +79,17 @@ public class Project {
     @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /**
+     * Generation jobs belonging to this project.
+     * Cascade ensures jobs are deleted when the project is removed.
+     */
+    @Builder.Default
+    @OneToMany(
+            mappedBy = "project",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private List<GenerationJob> generationJobs = new ArrayList<>();
 
 }

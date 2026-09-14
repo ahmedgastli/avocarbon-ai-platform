@@ -46,6 +46,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles AuthenticationException (invalid login, disabled user, etc) → 401 Unauthorized.
+     */
+    @ExceptionHandler(org.springframework.security.core.AuthenticationException.class)
+    public ResponseEntity<ErrorResponse> handleAuthenticationException(
+            org.springframework.security.core.AuthenticationException ex,
+            WebRequest request) {
+
+        log.warn("Authentication failed: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .message("Invalid credentials or account disabled")
+                .path(request.getDescription(false).replace("uri=", ""))
+                .timestamp(Instant.now())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.UNAUTHORIZED);
+    }
+
+    /**
      * Handles ResourceNotFoundException.
      */
     @ExceptionHandler(ResourceNotFoundException.class)
@@ -111,6 +131,46 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handles illegal state errors (e.g. downloading a job that is not SUCCESS) → 400 Bad Request.
+     */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalStateException(
+            IllegalStateException ex,
+            WebRequest request) {
+
+        log.warn("Illegal state: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .timestamp(Instant.now())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
+     * Handles illegal argument errors (e.g. invalid OpenAPI specification) → 400 Bad Request.
+     */
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ErrorResponse> handleIllegalArgumentException(
+            IllegalArgumentException ex,
+            WebRequest request) {
+
+        log.warn("Illegal argument: {}", ex.getMessage());
+
+        ErrorResponse errorResponse = ErrorResponse.builder()
+                .status(HttpStatus.BAD_REQUEST.value())
+                .message(ex.getMessage())
+                .path(request.getDescription(false).replace("uri=", ""))
+                .timestamp(Instant.now())
+                .build();
+
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
+    }
+
+    /**
      * Handles all unexpected exceptions.
      */
     @ExceptionHandler(Exception.class)
@@ -130,4 +190,4 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
-}
+}

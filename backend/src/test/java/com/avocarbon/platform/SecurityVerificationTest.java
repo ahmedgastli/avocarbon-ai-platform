@@ -6,7 +6,7 @@ import com.avocarbon.platform.module.identity.Role;
 import com.avocarbon.platform.module.identity.User;
 import com.avocarbon.platform.module.identity.UserRepository;
 import com.avocarbon.platform.module.analytics.KpiAggregationRepository;
-import com.avocarbon.platform.module.generator.GeneratedReportRepository;
+import com.avocarbon.platform.module.generator.GenerationJobRepository;
 import com.avocarbon.platform.module.integration.DataSourceRepository;
 import com.avocarbon.platform.module.integration.IntegrationSyncLogRepository;
 import com.avocarbon.platform.module.integration.ProductionMetricRepository;
@@ -40,7 +40,7 @@ class SecurityVerificationTest {
     @Autowired private PasswordEncoder passwordEncoder;
 
     // All dependent repositories needed to delete in proper FK order
-    @Autowired private GeneratedReportRepository generatedReportRepository;
+    @Autowired private GenerationJobRepository generationJobRepository;
     @Autowired private KpiAggregationRepository kpiAggregationRepository;
     @Autowired private IntegrationSyncLogRepository syncLogRepository;
     @Autowired private ProductionMetricRepository productionMetricRepository;
@@ -53,7 +53,7 @@ class SecurityVerificationTest {
     @BeforeEach
     void setUp() {
         // Clean in FK dependency order (children before parents)
-        generatedReportRepository.deleteAll();
+        generationJobRepository.deleteAll();
         kpiAggregationRepository.deleteAll();
         syncLogRepository.deleteAll();
         productionMetricRepository.deleteAll();
