@@ -5,9 +5,12 @@ backend/target/
 frontend/node_modules/
 mcp-server/node_modules/
 
-# Angular
+# Angular / Frontend build
 frontend/dist/
 frontend/.angular/
+
+# MCP Server build output
+mcp-server/dist/
 
 # Environment files
 .env

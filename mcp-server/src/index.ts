@@ -5,6 +5,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { generateAngularCodeWithLLM } from './openai.js';
 
 const app = express();
+app.disable('x-powered-by');
 const port = process.env.PORT || 8081;
 
 // The MCP Server instance

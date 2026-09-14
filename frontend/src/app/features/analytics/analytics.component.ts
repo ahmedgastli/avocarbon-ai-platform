@@ -456,6 +456,7 @@ export class AnalyticsComponent implements OnInit {
           const site = sites.find(s => s.id === activeSite);
           if (site) {
             const mockHistory: KpiAggregationResponse[] = Array.from({ length: 31 }).map((_, i) => {
+              // SECURITY-NOTE: Math.random() is used here purely for generating mock UI data for visualization, not for cryptographic purposes.
               const variance = (Math.random() - 0.5) * 0.04;
               const date = new Date();
               date.setDate(date.getDate() - (30 - i));

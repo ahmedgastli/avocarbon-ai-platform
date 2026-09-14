@@ -26,6 +26,9 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/avocarbon
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: postgres
+      DB_USERNAME: postgres
+      DB_PASSWORD: postgres
+      APP_OPENAI_API_KEY: mock-openai-key
       APP_MCP_SERVER_URL: http://mcp-server:8081
     depends_on:
       postgres:
@@ -41,7 +44,7 @@ services:
     image: avocarbon-frontend:latest
     container_name: avocarbon-frontend
     ports:
-      - "80:80"
+      - "80:8080"
     depends_on:
       - backend
     restart: unless-stopped

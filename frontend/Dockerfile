@@ -4,7 +4,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies
 COPY package*.json ./
-RUN npm ci
+RUN npm ci --ignore-scripts
 
 # Copy the rest of the application source code
 COPY . .
@@ -15,20 +15,18 @@ RUN find src -type f -name "*.ts" -exec sed -i 's|http://localhost:8080||g' {} +
 # Build the application
 RUN npm run build
 
-# Stage 2: Serve the application using Nginx
-FROM nginx:alpine
+# Stage 2: Serve the application using Nginx (unprivileged, non-root)
+FROM nginxinc/nginx-unprivileged:alpine
 
-# Remove default Nginx static assets
-RUN rm -rf /usr/share/nginx/html/*
-
-# Copy the built Angular app from the build stage
-COPY --from=build /app/dist/frontend/browser /usr/share/nginx/html
+# Copy the built Angular app from the build stage directly into html dir.
+# Using COPY --chown avoids needing root-level rm -rf on nginx-unprivileged.
+COPY --from=build --chown=nginx:nginx /app/dist/frontend/browser /usr/share/nginx/html
 
 # Copy the custom Nginx configuration for SPA routing
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 
-# Expose port 80
-EXPOSE 80
+# Expose port 8080 (nginx-unprivileged listens on 8080, not 80)
+EXPOSE 8080
 
 # Start Nginx
 CMD ["nginx", "-g", "daemon off;"]

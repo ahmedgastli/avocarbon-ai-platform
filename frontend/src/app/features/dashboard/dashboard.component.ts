@@ -392,6 +392,7 @@ export class DashboardComponent implements OnInit {
 
             // Generate timeline based on site baseline
             const mockHistory: KpiAggregationResponse[] = Array.from({ length: 31 }).map((_, i) => {
+              // SECURITY-NOTE: Math.random() is used here purely for generating mock UI data for visualization, not for cryptographic purposes.
               const variance = (Math.random() - 0.5) * 0.05;
               const date = new Date();
               date.setDate(date.getDate() - (30 - i));

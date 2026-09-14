@@ -343,7 +343,8 @@ export class DataSourcesComponent implements OnInit {
     
     this.currentRequest = {
       name: '',
-      url: 'http://mock-api.avocarbon.com/prod',
+      // Note: While HTTPS is recommended and used by default, HTTP is supported intentionally for legacy internal PLCs
+      url: 'https://mock-api.avocarbon.com/prod',
       token: 'mock-token-secret',
       type: 'PRODUCTION',
       syncFrequency: 'DAILY',
